@@ -14,6 +14,7 @@ export const CHECKBOX_OPTIONS = [
 // Criteria key used when a L0 MDO (ministry / state) selects every organisation of its hierarchy.
 // The whole ministry / state is then stored as a single criteria instead of the expanded org list.
 export const MINISTRY_OR_STATE_CRITERIA_KEY = "ministryOrStateId";
+export const MINISTRY_OR_STATE_FILTER_KEY = "profileDetails.ministryOrStateId";
 
 // MDO only. Every organisation picked through the "Select all" option of the Organisation condition.
 // It is saved as an empty rootOrgId list, and stands in for it in the form so the condition is filled.

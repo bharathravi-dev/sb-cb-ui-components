@@ -220,3 +220,7 @@
     display: flex;
     align-items: center;
 }
+
+::ng-deep .card-wide-lib {
+  margin-right: 1rem;
+}

@@ -5,6 +5,7 @@ import { AccessControlService } from "../../../_services/access-control.service"
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { PageChangeEmitter } from "../../../_models/pagination.model";
 import { NsAccessControlConfig } from "../../../_models/access-control.model";
+import { ALL_ORGANISATIONS_SELECTION, MINISTRY_OR_STATE_FILTER_KEY } from "../../../_constants/app.constants";
 import { SnackbarComponent } from "../../../components/snackbar/snackbar.component";
 import { Subject } from "rxjs";
 import { first, takeUntil } from "rxjs/operators";
@@ -81,6 +82,7 @@ export class InviteUsersComponent implements OnInit, OnDestroy {
       NsAccessControlConfig.SelectionType.Cadre,
       NsAccessControlConfig.SelectionType.Service,
       NsAccessControlConfig.SelectionType.Batch,
+      NsAccessControlConfig.SelectionType.CentralDeputation,
     ];
 
     if (this.accessControlService.accessControlConfig()?.application === NsAccessControlConfig.Application.MDO) {
@@ -99,15 +101,18 @@ export class InviteUsersComponent implements OnInit, OnDestroy {
       }, { ...reducedData });
     }
 
+    // "Select all" organisations is a form placeholder, the search reads the scope it stands for
+    const ministryOrStateId = this.resolveOrganisationScope(reducedData);
+
     // A non CCA MDO always stays within its own organisation unless organisations
-    // have been explicitly picked from its hierarchy
-    if (this.accessControlService.accessControlConfig()?.application === NsAccessControlConfig.Application.MDO && !this.isCCA && !reducedData.rootOrgId?.length) {
+    // have been explicitly picked from its hierarchy, or the whole ministry / state is selected
+    if (this.accessControlService.accessControlConfig()?.application === NsAccessControlConfig.Application.MDO && !this.isCCA && !reducedData.rootOrgId?.length && !ministryOrStateId.length) {
       reducedData.rootOrgId = this.accessControlService.accessControlConfig().userConfig.org?.rootOrgId ? [this.accessControlService.accessControlConfig().userConfig.org?.rootOrgId] : [];
     }
 
     if (Object.keys(reducedData)?.length) {
       this.filters = {
-        rootOrgId: reducedData?.rootOrgId,
+        rootOrgId: reducedData?.rootOrgId?.length ? reducedData.rootOrgId : undefined,
         "profileDetails.profileStatus": reducedData.profilestatus,
         "profileDetails.professionalDetails.designation": reducedData.designation,
         "profileDetails.professionalDetails.group": reducedData.group,
@@ -117,8 +122,22 @@ export class InviteUsersComponent implements OnInit, OnDestroy {
         status: 1,
       };
 
+      if (ministryOrStateId.length) {
+        this.filters[MINISTRY_OR_STATE_FILTER_KEY] = ministryOrStateId;
+      }
+
+      const centralDeputationSelections = reducedData[NsAccessControlConfig.SelectionType.CentralDeputation];
+      const centralDeputation = Array.isArray(centralDeputationSelections) ? centralDeputationSelections[0] : centralDeputationSelections;
+      if (typeof centralDeputation === "boolean") {
+        this.filters["profileDetails.cadreDetails.isOnCentralDeputation"] = centralDeputation;
+      } else if (centralDeputation === "true" || centralDeputation === "false") {
+        this.filters["profileDetails.cadreDetails.isOnCentralDeputation"] = centralDeputation === "true";
+      }
+
       Object.keys(reducedData).forEach((key: any) => {
-        if (!pickEntity.includes(key) && key !== "user") {
+        const value = reducedData[key];
+        const hasValue = Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && value !== "";
+        if (key && hasValue && !pickEntity.includes(key) && key !== "user") {
           if (!this.filters.orgCustomFields) {
              this.filters.orgCustomFields = {};
           }
@@ -203,6 +222,35 @@ export class InviteUsersComponent implements OnInit, OnDestroy {
 
   applySelections(): void {
     this.dialogRef.close({ rule: this.data.rule, condition: this.data.condition, selected: this.usersFinalList });
+  }
+
+  /**
+   * Organisation scope of the search, matching what the user group saves:
+   * - "Select all" on a CCA searches every organisation, no rootOrgId filter
+   * - "Select all" of a L0, or every organisation of its hierarchy picked, is its whole ministry / state
+   * - "Select all" of a L1 -> L10 is every organisation of its branch
+   * Updates reducedData.rootOrgId and returns the ministry / state filter, empty when not used.
+   */
+  private resolveOrganisationScope(reducedData: any): string[] {
+    const config = this.accessControlService.accessControlConfig();
+    const selections: any[] = Array.isArray(reducedData.rootOrgId) ? reducedData.rootOrgId : [];
+    if (config?.application !== NsAccessControlConfig.Application.MDO || !selections.length) {
+      return [];
+    }
+
+    const isAllSelected = selections.includes(ALL_ORGANISATIONS_SELECTION);
+    const hierarchyOrgIds = this.accessControlService.getOrgHierarchyOrgIds();
+    const isL0 = !this.isCCA && hierarchyOrgIds.length > 0 && this.accessControlService.isL0MdoUser(config);
+    const loggedInOrgId = this.accessControlService.getLoggedInOrgId(config);
+
+    if (isL0 && loggedInOrgId && (isAllSelected || this.accessControlService.areAllOrgHierarchyOrgsSelected(selections))) {
+      reducedData.rootOrgId = [];
+      return [loggedInOrgId];
+    }
+    if (isAllSelected) {
+      reducedData.rootOrgId = this.isCCA ? [] : hierarchyOrgIds;
+    }
+    return [];
   }
 
   isArrayOfObjects(arr: any): boolean {

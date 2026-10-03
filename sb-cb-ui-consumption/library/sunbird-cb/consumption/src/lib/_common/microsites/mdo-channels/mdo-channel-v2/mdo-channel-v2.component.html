@@ -276,8 +276,7 @@
                         </div>
                     </ng-container>
                     <!-- Tabs Section -->
-                    <ng-container *ngIf="data?.tabSection?.disable">
-
+                    @if (!data?.tabSection?.disable) {
                         <mat-tab-group animationDuration="0ms" class="mat-tab-labels mytabs w-full "
                             [selectedIndex]="selectedIndex"
                             (selectedTabChange)="selectedIndex = $event.index; tabClicked($event)">
@@ -312,7 +311,7 @@
                                 </div>
                             </mat-tab>
                         </mat-tab-group>
-                    </ng-container>
+                    }
 
                     <!-- strip arrays -->
                     <div class="">

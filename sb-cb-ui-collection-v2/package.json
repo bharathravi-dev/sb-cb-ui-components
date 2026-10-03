@@ -1,6 +1,6 @@
 {
   "name": "sb-cb-collection-v2",
-  "version": "0.1.2-cbrelease-4.8.41",
+  "version": "0.1.4-cbrelease-4.8.41",
   "scripts": {
     "ng": "ng",
     "build": "node --max_old_space_size=8000 ./node_modules/@angular/cli/bin/ng build",

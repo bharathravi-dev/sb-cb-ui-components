@@ -18,7 +18,7 @@ import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
 import { MatRadioChange } from "@angular/material/radio";
 import * as _ from "lodash";
-import { ALL_ORGANISATIONS_SELECTION, MINISTRY_OR_STATE_CRITERIA_KEY } from "../../_constants/app.constants";
+import { ALL_ORGANISATIONS_SELECTION, MINISTRY_OR_STATE_CRITERIA_KEY, MINISTRY_OR_STATE_FILTER_KEY } from "../../_constants/app.constants";
 
 @Component({
     selector: "sb-uic-access-control",
@@ -1872,6 +1872,15 @@ export class AccessControlComponent implements OnInit, AfterViewInit, OnDestroy 
       const entity = condition.get("entity")?.value;
       const selections = condition.get("selections")?.value || [];
       const key = entityKeyMap[entity];
+      // A L0 MDO selecting every organisation of its hierarchy is saved as its ministry / state,
+      // the count reads the same scope instead of the expanded rootOrgId list
+      if (entity === NsAccessControlConfig.SelectionType.Organizations) {
+        const organisationCriteria = this.createOrganisationCriteria(selections);
+        if (organisationCriteria.criteriaKey === MINISTRY_OR_STATE_CRITERIA_KEY) {
+          request[MINISTRY_OR_STATE_FILTER_KEY] = organisationCriteria.criteriaValue;
+          continue;
+        }
+      }
       if (key) {
         if (
           entity === NsAccessControlConfig.SelectionType.Users &&
@@ -1881,8 +1890,12 @@ export class AccessControlComponent implements OnInit, AfterViewInit, OnDestroy 
           const userIds = selections && selections.map((user: any) => user?.userId);
           request[key] = userIds;
         } else if (entity === NsAccessControlConfig.SelectionType.CentralDeputation) {
-          if (selections.length && typeof selections[0] === "boolean") {
-            request[key] = selections[0];
+          // A saved group reopened for edit can hold the flag as a string ("true"/"false")
+          const centralDeputation = Array.isArray(selections) ? selections[0] : selections;
+          if (typeof centralDeputation === "boolean") {
+            request[key] = centralDeputation;
+          } else if (centralDeputation === "true" || centralDeputation === "false") {
+            request[key] = centralDeputation === "true";
           }
         }
         else if (this.isAllOrganisationsSelection(selections)) {
@@ -1895,7 +1908,8 @@ export class AccessControlComponent implements OnInit, AfterViewInit, OnDestroy 
           request[key] = selections;
         }
       } 
-      else {
+      // A condition with no entity picked yet, or nothing selected, is not a custom field filter
+      else if (entity && Array.isArray(selections) && selections.length) {
         if (!request.orgCustomFields) {
           request.orgCustomFields = {};
         }
@@ -1916,7 +1930,9 @@ export class AccessControlComponent implements OnInit, AfterViewInit, OnDestroy 
         // A L0 MDO can scope the count to the organisations picked from its hierarchy,
         // for every other non CCA MDO the count is always restricted to its own organisation
         const hasOrgSelections = this.canSelectOrgHierarchy && request.rootOrgId?.length > 0;
-        if (!hasOrgSelections) {
+        // The ministry / state already scopes the count, a rootOrgId beside it would narrow it to one organisation
+        const hasMinistryOrState = request[MINISTRY_OR_STATE_FILTER_KEY]?.length > 0;
+        if (!hasOrgSelections && !hasMinistryOrState) {
           request.rootOrgId = this.accessControlService.accessControlConfig().userConfig.org?.rootOrgId ? [this.accessControlService.accessControlConfig().userConfig.org?.rootOrgId] : [];
         }
       }

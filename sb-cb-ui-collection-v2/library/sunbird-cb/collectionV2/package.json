@@ -1,6 +1,6 @@
 {
   "name": "@sunbird-cb/collection-v2",
-  "version": "0.1.2-cbrelease-4.8.41",
+  "version": "0.1.4-cbrelease-4.8.41",
   "description": "Comprehensive collection library combining UI components and creation portal components",
   "peerDependencies": {
     "@angular/animations": "^20.3.23",

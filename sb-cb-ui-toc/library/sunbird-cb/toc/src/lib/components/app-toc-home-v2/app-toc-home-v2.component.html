@@ -517,7 +517,8 @@
                 *ngIf="canShare && tocConfig?.uiVisibility?.banner?.shareButton !== false">
                 <mat-icon class="nodtranslate" (click)="onClickOfShare()">share</mat-icon>
               </div>
-              <ng-container *ngIf="(contentReadData?.courseCategory === 'Course' || contentReadData?.courseCategory === 'Multilingual Course' || isComprehensiveAssessment) && !forPreview">
+              <ng-container *ngIf="(contentReadData?.courseCategory === 'Course' || contentReadData?.courseCategory === 'Multilingual Course') && !forPreview">
+              <!-- <ng-container *ngIf="(contentReadData?.courseCategory === 'Course' || contentReadData?.courseCategory === 'Multilingual Course' || isComprehensiveAssessment) && !forPreview"> -->
                 <ng-container *ngIf="canUnenroll">
                   <div class="hideAbove1200">
                     <button *ngIf="!forPreview" mat-icon-button [matMenuTriggerFor]="moreOptionsMenu" class="toc-more-menu-btn"

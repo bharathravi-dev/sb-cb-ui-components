@@ -3,7 +3,7 @@ import { of } from 'rxjs';
 
 import { AccessControlComponent } from './access-control.component';
 import { NsAccessControlConfig } from '../../_models/access-control.model';
-import { ALL_ORGANISATIONS_SELECTION } from '../../_constants/app.constants';
+import { ALL_ORGANISATIONS_SELECTION, MINISTRY_OR_STATE_FILTER_KEY } from '../../_constants/app.constants';
 import { ConfirmDialogComponent } from '../dialogs/confirm-dialog/confirm-dialog.component';
 import { SaveUserGroupComponent } from '../dialogs/save-user-group/save-user-group.component';
 
@@ -306,6 +306,186 @@ describe('AccessControlComponent', () => {
         request: { filters: { status: 1 }, fields: ['identifier', 'rootOrgId', 'firstName'] }
       });
       expect(component.userCount[0]).toBe(12);
+    });
+
+    describe('for a non CCA MDO', () => {
+      beforeEach(() => {
+        component.isCCA = false;
+        component.canSelectOrgHierarchy = true;
+        component.config.userConfig.org = { isCCA: false, rootOrgId: 'own-org' } as any;
+        accessControlService.accessControlConfig = jest.fn(() => component.config);
+        accessControlService.validateUser = jest.fn(() => of({ result: { response: { count: 7 } } }));
+        accessControlService.getOrgHierarchyOrgIds = jest.fn(() => ['l1-org', 'l2-org']);
+      });
+
+      it('should count the whole ministry / state when a L0 selected all organisations', async () => {
+        accessControlService.isL0MdoUser.mockReturnValue(true);
+        addGroup('', [ALL_ORGANISATIONS_SELECTION]);
+
+        await component.calculateUserCountForUserGroup(0);
+
+        expect(accessControlService.validateUser).toHaveBeenCalledWith({
+          request: {
+            filters: { [MINISTRY_OR_STATE_FILTER_KEY]: ['own-org'], status: 1 },
+            fields: ['identifier', 'rootOrgId', 'firstName']
+          }
+        });
+        expect(component.userCount[0]).toBe(7);
+      });
+
+      it('should count the whole ministry / state when a L0 picked every organisation of its hierarchy', async () => {
+        accessControlService.isL0MdoUser.mockReturnValue(true);
+        accessControlService.areAllOrgHierarchyOrgsSelected.mockReturnValue(true);
+        addGroup('', ['l1-org', 'l2-org']);
+
+        await component.calculateUserCountForUserGroup(0);
+
+        const filters = accessControlService.validateUser.mock.calls[0][0].request.filters;
+        expect(filters).toEqual({ [MINISTRY_OR_STATE_FILTER_KEY]: ['own-org'], status: 1 });
+        expect(filters).not.toHaveProperty('rootOrgId');
+      });
+
+      it('should count every organisation of the branch when a L1 -> L10 selected all organisations', async () => {
+        addGroup('', [ALL_ORGANISATIONS_SELECTION]);
+
+        await component.calculateUserCountForUserGroup(0);
+
+        const filters = accessControlService.validateUser.mock.calls[0][0].request.filters;
+        expect(filters).toEqual({ rootOrgId: ['l1-org', 'l2-org'], status: 1 });
+        expect(filters).not.toHaveProperty(MINISTRY_OR_STATE_FILTER_KEY);
+      });
+
+      it('should count the picked organisations of a L0 partial selection', async () => {
+        accessControlService.isL0MdoUser.mockReturnValue(true);
+        addGroup('', ['l1-org']);
+
+        await component.calculateUserCountForUserGroup(0);
+
+        const filters = accessControlService.validateUser.mock.calls[0][0].request.filters;
+        expect(filters).toEqual({ rootOrgId: ['l1-org'], status: 1 });
+      });
+
+      describe('with service and central deputation', () => {
+        const addGroupWithDeputation = (deputation: any) => {
+          component.userGroup.push(
+            fb.group({
+              id: ['group-1'],
+              savedUserGroupId: [''],
+              name: ['User Group 1'],
+              conditions: fb.array([
+                fb.group({ id: ['c-1'], entity: [NsAccessControlConfig.SelectionType.Organizations], conditionType: ['is'], selections: [[ALL_ORGANISATIONS_SELECTION]] }),
+                fb.group({ id: ['c-2'], entity: [NsAccessControlConfig.SelectionType.Service], conditionType: ['is'], selections: [['indian administrative service (ias)']] }),
+                fb.group({ id: ['c-3'], entity: [NsAccessControlConfig.SelectionType.CentralDeputation], conditionType: ['is'], selections: [deputation] })
+              ])
+            })
+          );
+        };
+
+        const countFilters = async (deputation: any) => {
+          accessControlService.isL0MdoUser.mockReturnValue(true);
+          addGroupWithDeputation(deputation);
+          await component.calculateUserCountForUserGroup(0);
+          return accessControlService.validateUser.mock.calls[0][0].request.filters;
+        };
+
+        it('should send a boolean central deputation beside the ministry / state', async () => {
+          const filters = await countFilters([true]);
+
+          expect(filters).toEqual({
+            [MINISTRY_OR_STATE_FILTER_KEY]: ['own-org'],
+            'profileDetails.cadreDetails.civilServiceName': ['indian administrative service (ias)'],
+            'profileDetails.cadreDetails.isOnCentralDeputation': true,
+            status: 1
+          });
+        });
+
+        it('should convert a "true" string from a reopened group to a boolean', async () => {
+          const filters = await countFilters(['true']);
+
+          expect(filters['profileDetails.cadreDetails.isOnCentralDeputation']).toBe(true);
+          expect(filters[MINISTRY_OR_STATE_FILTER_KEY]).toEqual(['own-org']);
+        });
+
+        it('should convert a "false" string from a reopened group to a boolean', async () => {
+          const filters = await countFilters(['false']);
+
+          expect(filters['profileDetails.cadreDetails.isOnCentralDeputation']).toBe(false);
+        });
+
+        it('should accept a central deputation value not wrapped in an array', async () => {
+          const filters = await countFilters(true);
+
+          expect(filters['profileDetails.cadreDetails.isOnCentralDeputation']).toBe(true);
+        });
+
+        it('should leave the flag out for an unrecognised value', async () => {
+          const filters = await countFilters(['yes']);
+
+          expect(filters).not.toHaveProperty('profileDetails.cadreDetails.isOnCentralDeputation');
+        });
+      });
+
+      describe('org custom fields', () => {
+        const addGroupWithConditions = (conditions: { entity: string; selections: any }[]) => {
+          component.userGroup.push(
+            fb.group({
+              id: ['group-1'],
+              savedUserGroupId: [''],
+              name: ['User Group 1'],
+              conditions: fb.array(
+                conditions.map((condition, index) =>
+                  fb.group({ id: [`c-${index}`], entity: [condition.entity], conditionType: ['is'], selections: [condition.selections] })
+                )
+              )
+            })
+          );
+        };
+
+        const countFilters = async (conditions: { entity: string; selections: any }[]) => {
+          accessControlService.isL0MdoUser.mockReturnValue(true);
+          addGroupWithConditions(conditions);
+          await component.calculateUserCountForUserGroup(0);
+          return accessControlService.validateUser.mock.calls[0][0].request.filters;
+        };
+
+        it('should not send orgCustomFields for a condition without an entity', async () => {
+          const filters = await countFilters([
+            { entity: NsAccessControlConfig.SelectionType.Organizations, selections: [ALL_ORGANISATIONS_SELECTION] },
+            { entity: '', selections: [] }
+          ]);
+
+          expect(filters).toEqual({ [MINISTRY_OR_STATE_FILTER_KEY]: ['own-org'], status: 1 });
+        });
+
+        it('should not send orgCustomFields for a custom field without selections', async () => {
+          const filters = await countFilters([
+            { entity: NsAccessControlConfig.SelectionType.Organizations, selections: [ALL_ORGANISATIONS_SELECTION] },
+            { entity: 'customFieldA', selections: [] }
+          ]);
+
+          expect(filters).not.toHaveProperty('orgCustomFields');
+        });
+
+        it('should send the filled custom fields only', async () => {
+          const filters = await countFilters([
+            { entity: NsAccessControlConfig.SelectionType.Organizations, selections: [ALL_ORGANISATIONS_SELECTION] },
+            { entity: 'customFieldA', selections: [{ fieldValue: 'value-1' }, 'value-2'] },
+            { entity: '', selections: [] }
+          ]);
+
+          expect(filters.orgCustomFields).toEqual({ customFieldA: ['value-1', 'value-2'] });
+        });
+      });
+
+      it('should restrict the count to the own organisation when the hierarchy cannot be selected', async () => {
+        component.canSelectOrgHierarchy = false;
+        addGroup('', ['org-a']);
+
+        await component.calculateUserCountForUserGroup(0);
+
+        const filters = accessControlService.validateUser.mock.calls[0][0].request.filters;
+        expect(filters).toEqual({ rootOrgId: ['own-org'], status: 1 });
+      });
     });
   });
 

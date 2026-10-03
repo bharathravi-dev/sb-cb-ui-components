@@ -1,6 +1,6 @@
 {
   "name": "sb-cb-ui-access-settings",
-  "version": "0.1.15-cbrelease-4.8.41",
+  "version": "0.1.16-cbrelease-4.8.41",
   "scripts": {
     "ng": "ng",
     "build": "node --max_old_space_size=8000 ./node_modules/@angular/cli/bin/ng build",
