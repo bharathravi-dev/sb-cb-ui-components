@@ -29,7 +29,7 @@ import {
   UtilityService, WidgetEnrollService, WsEvents,
 } from '@sunbird-cb/utils-v2'
 
-import { CommonMethodsService, ConfirmationDialogComponent, ContentLanguageService, TOCMultiLingualDialogComponent, WidgetContentLibService, WidgetUserServiceLib } from '@sunbird-cb/consumption'
+import { CommonMethodsService, ConfirmationDialogComponent, ContentLanguageService, EnrolementDictionaryService, TOCMultiLingualDialogComponent, WidgetContentLibService, WidgetUserServiceLib } from '@sunbird-cb/consumption'
 import { NsAppToc } from '../../models/app-toc.model'
 import { AppTocService } from '../../services/app-toc.service'
 import { MobileAppsService } from '../../services/mobile-apps.service'
@@ -324,6 +324,7 @@ export class AppTocHomeV2Component implements OnInit, OnDestroy, AfterViewChecke
     private location: Location,
     private commonMethodsSvc: CommonMethodsService,
     private comprehensiveAssessmentSvc: ComprehensiveAssessmentService,
+    private enrolementDictionarySvc: EnrolementDictionaryService,
     @Inject('environment') public environment: any,
     private cdr: ChangeDetectorRef
   ) {
@@ -851,11 +852,30 @@ export class AppTocHomeV2Component implements OnInit, OnDestroy, AfterViewChecke
     this.contentViewEventForNetCore('enroll')
   }
 
+  // stores the newly enrolled course in the IndexedDB enrolment dictionary
+  private addCourseToEnrolementDictionary(courseId?: string) {
+    if (!courseId) {
+      return
+    }
+    const record = {
+      [courseId]: {
+        active: true,
+        courseCategory: this.content?.courseCategory || this.baseContentReadData?.courseCategory,
+        primaryCategory: this.content?.primaryCategory || this.baseContentReadData?.primaryCategory,
+        status: 1,
+      },
+    }
+    this.enrolementDictionarySvc.addEnrolement(record).subscribe({
+      error: (err: any) => console.error('Failed to update enrolment dictionary', err),
+    })
+  }
+
   public autoEnrollLearningPathway(batchData: any) {
     let batchId = batchData?.batchId
     if (batchId) {
       this.contentSvc.autoEnrollLP(this.content?.identifier).subscribe((res: any) => {
         if (res) {
+          this.addCourseToEnrolementDictionary(this.content?.identifier)
           this.navigateToPlayerPage(batchId)
           this.enrollBtnLoading = false
         }
@@ -895,7 +915,8 @@ export class AppTocHomeV2Component implements OnInit, OnDestroy, AfterViewChecke
       this.contentSvc.autoAssignCuratedBatchApi(req, programType).subscribe(
         (data: NsContent.IBatchListResponse) => {
           if (data) {
-            if (programType === NsContent.ECourseCategory.MODERATED_PROGRAM && batchData.endDate) {
+            this.addCourseToEnrolementDictionary(this.content?.identifier)
+            if (programType ===NsContent.ECourseCategory.MODERATED_PROGRAM && batchData.endDate) {
               this.batchData = {
                 content: [batchData],
                 enrolled: true,
@@ -934,6 +955,7 @@ export class AppTocHomeV2Component implements OnInit, OnDestroy, AfterViewChecke
             content: data.content,
             enrolled: true,
           }
+          this.addCourseToEnrolementDictionary(this.baseContentReadData?.identifier)
           const batchId = this.getBatchId()
           if (batchId) {
             this.navigateToPlayerPage(batchId)
@@ -1941,6 +1963,11 @@ export class AppTocHomeV2Component implements OnInit, OnDestroy, AfterViewChecke
               this.enrolledCourseData.active = false
               this.canUnenroll = false
               this.isUnEnrolled = true
+              if (requestBody.request.courseId) {
+                this.enrolementDictionarySvc.updateUnEnrolement(requestBody.request.courseId).subscribe({
+                  error: (err: any) => console.error('Failed to update enrolment dictionary', err),
+                })
+              }
               this.openSnackbar('You have been successfully un-enrolled from the course.')
             } else {
               this.openSnackbar('Un-enrollment failed. Please try again later.')

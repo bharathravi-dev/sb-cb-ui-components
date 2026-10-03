@@ -113,6 +113,30 @@ export class EnrolementDictionaryService {
     await this.dbPut(ENROLEMENT_DB_KEY, merged)
   }
 
+  /**
+   * Marks a course as un-enrolled in the cached enrolment dictionary and saves it back.
+   * The entry is kept; only active is set to false and status to 0.
+   * Does nothing if the course is not in the dictionary.
+   * Does not touch the cache timestamp.
+   *
+   * @param courseId do_id of the course that was un-enrolled
+   */
+  updateUnEnrolement(courseId: string): Observable<void> {
+    return from(this.updateUnEnrolementAsync(courseId))
+  }
+
+  private async updateUnEnrolementAsync(courseId: string): Promise<void> {
+    const existing = await this.dbGet<Record<string, any>>(ENROLEMENT_DB_KEY)
+    if (!existing || !courseId || !existing[courseId]) {
+      return
+    }
+    const updated: Record<string, any> = {
+      ...existing,
+      [courseId]: { ...existing[courseId], active: false},
+    }
+    await this.dbPut(ENROLEMENT_DB_KEY, updated)
+  }
+
   /** Clears the stored enrolment dictionary and resets the cache timestamp. */
   clearCache(): Observable<void> {
     return from(this.clearCacheAsync())

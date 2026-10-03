@@ -11,7 +11,7 @@
     "@angular/router": "^20.3.19",
     "@angular/material": "^20.2.14",
     "@ngx-translate/core": "^15.0.0",
-    "@sunbird-cb/consumption": "0.1.7-cbrelease-4.8.40-ca",
+    "@sunbird-cb/consumption": "0.1.2-cbrelease-4.8.41.2",
     "@sunbird-cb/design-system": "0.0.3",
     "@sunbird-cb/discussion-v2": "0.0.3-ang-17-20",
     "@sunbird-cb/micro-surveys": "0.0.1-ang-17-20",
