@@ -55,6 +55,7 @@ const API_END_POINTS = {
   MARK_ATTENDENCE: `${PROXY_SLAG_V8}/blendedprogram/v1/update/progress`,
   ATTENDANCE_PROGRESS: `${PROXY_SLAG_V8}/blendedprogram/v1/getUserContentProgress`,
   ACTIVE_LEARNERS_LIST: `${PROXY_SLAG_V8}/course/v1/batch/getParticipants`,
+  ACTIVE_INACTIVE_LEARNERS_LIST: `${PROXY_SLAG_V8}/program/v1/batch/getParticipants`,
   ADMIN_ACTIVE_LEARNERS_LIST: `${PROXY_SLAG_V8}/course/v1/batch/admin/getParticipants`,
   EXT_CONTENT_READ: (contentId: any) => `/apis/proxies/v8/cios/v1/content/read/${contentId}`,
   EXT_USER_COURSE_ENROLL: (contentId: any) => `/apis/proxies/v8/cios-enroll/v1/readby/useridcourseid/${contentId}`,
@@ -251,6 +252,19 @@ export class WidgetContentService {
       },
     }
     return this.http.post<any>(API_END_POINTS.ADMIN_ACTIVE_LEARNERS_LIST, reqBody).pipe(retry(1))
+  }
+  fetchCompleteLearnersList(batchID: string, pageLimit: number = 10, offsetNum: number = 0): Observable<any> {
+    const reqBody = {
+      request: {
+        filters: {
+          active: true,
+          batchId: batchID,
+          limit: pageLimit,
+          currentOffSet: offsetNum,
+        },
+      },
+    }
+    return this.http.post<any>(API_END_POINTS.ACTIVE_INACTIVE_LEARNERS_LIST, reqBody).pipe(retry(1))
   }
 
   fetchProgress(req: any): Observable<any[]> {

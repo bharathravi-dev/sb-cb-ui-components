@@ -40,6 +40,10 @@ export class AuthorCardComponent extends WidgetBaseComponent
     super()
   }
 
+  get isUnenrolledLearner(): boolean {
+    return Boolean(this.showProfile && this.widgetData && this.widgetData?.active === false)
+  }
+
   ngOnInit() {
     this.selectedUsersArr = []
     this.checkForSurveyLink()
@@ -63,6 +67,9 @@ export class AuthorCardComponent extends WidgetBaseComponent
   }
 
   clickApprove() {
+    if (this.isUnenrolledLearner) {
+      return
+    }
     const data = {
       action: 'Approve',
       userData: this.widgetData,
@@ -71,6 +78,9 @@ export class AuthorCardComponent extends WidgetBaseComponent
   }
 
   clickReject() {
+    if (this.isUnenrolledLearner) {
+      return
+    }
     const data = {
       action: 'Reject',
       userData: this.widgetData,
@@ -79,6 +89,9 @@ export class AuthorCardComponent extends WidgetBaseComponent
   }
 
   clickRemove() {
+    if (this.isUnenrolledLearner) {
+      return
+    }
     const data = {
       action: 'Remove',
       userData: this.widgetData,
@@ -106,6 +119,9 @@ export class AuthorCardComponent extends WidgetBaseComponent
   // }
 
   selectNewRequest(event: any, widgetData: any) {
+    if (this.isUnenrolledLearner) {
+      return
+    }
     if (event && event.checked) {
       this.selectedUsers.emit({ checked: true, widgetData })
     } else {

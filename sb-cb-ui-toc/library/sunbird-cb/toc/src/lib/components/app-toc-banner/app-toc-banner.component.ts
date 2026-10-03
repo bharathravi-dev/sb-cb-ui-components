@@ -3,7 +3,7 @@ import { Component, ElementRef, EventEmitter, Inject, Input, OnChanges, OnDestro
 import { DomSanitizer, SafeStyle } from '@angular/platform-browser'
 import { ActivatedRoute, Event, NavigationEnd, Router } from '@angular/router'
 import { NsContent } from '../../_services/widget-content.model'
-import { WidgetContentService } from '../../_services/widget-content.service'
+import { BATCH_LIST_LIMIT, WidgetContentService } from '../../_services/widget-content.service'
 import { viewerRouteGenerator } from '../../_services/viewer-route-util'
 import { TFetchStatus, UtilityService, ConfigurationsService, LoggerService, WsEvents, EventService, MultilingualTranslationsService } from '@sunbird-cb/utils-v2'
 import { ConfirmDialogComponent } from '../../_collection/_common/confirm-dialog/confirm-dialog.component'
@@ -37,6 +37,7 @@ import { MatAutocomplete as MatAutocomplete, MatAutocompleteSelectedEvent as Mat
 import { MatChipInputEvent as MatChipInputEvent } from '@angular/material/chips'
 import { MatDialog as MatDialog } from '@angular/material/dialog'
 import { MatSnackBar as MatSnackBar } from '@angular/material/snack-bar'
+import { MatSelect } from '@angular/material/select'
 import { EnrollProfileFormComponent } from '../enroll-profile-form/enroll-profile-form.component'
 
 dayjs.extend(isSameOrBefore)
@@ -144,6 +145,8 @@ export class AppTocBannerComponent implements OnInit, OnChanges, OnDestroy {
   doptEligibleServicesList: string[] = []
   maxEmailsLimit = 30
   showLoader = false
+  batchListLoading = false
+  allBatchesLoaded = false
   constructor(
     private sanitizer: DomSanitizer,
     private router: Router,
@@ -399,6 +402,9 @@ export class AppTocBannerComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(_changes: SimpleChanges): void {
+    if (_changes.batchData) {
+      this.allBatchesLoaded = false
+    }
     this.assignPathAndUpdateBanner(this.router.url)
     if (this.content) {
       this.fetchExternalContentAccess()
@@ -1591,6 +1597,64 @@ export class AppTocBannerComponent implements OnInit, OnChanges, OnDestroy {
 
   translateLabels(label: string, type: any, subtype: any) {
     return this.langtranslations.translateActualLabel(label, type, subtype)
+  }
+
+  get hasMoreBatches(): boolean {
+    const loadedCount = _.get(this.batchData, 'content.length', 0)
+    const totalCount = _.get(this.batchData, 'count')
+    return !this.allBatchesLoaded && loadedCount >= BATCH_LIST_LIMIT && (!totalCount || loadedCount < totalCount)
+  }
+
+  onBatchDropdownToggle(opened: boolean, batchSelect: MatSelect) {
+    if (!opened || !batchSelect) {
+      return
+    }
+    setTimeout(() => {
+      const panel = document.getElementById(`${batchSelect.id}-panel`)
+      if (!panel) {
+        return
+      }
+      panel.addEventListener('scroll', () => {
+        if (panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 50) {
+          this.fetchMoreBatches(panel)
+        }
+      })
+      this.fillBatchPanel(panel)
+    })
+  }
+
+  fillBatchPanel(panel: HTMLElement) {
+    if (panel.scrollHeight <= panel.clientHeight) {
+      this.fetchMoreBatches(panel)
+    }
+  }
+
+  fetchMoreBatches(panel?: HTMLElement) {
+    if (this.batchListLoading || !this.hasMoreBatches || !this.content) {
+      return
+    }
+    this.batchListLoading = true
+    const req = this.contentSvc.getCourseBatchesRequest(this.content.identifier, this.batchData.content.length)
+    this.contentSvc.fetchCourseBatches(req).subscribe(
+      (data: NsContent.IBatchListResponse) => {
+        const newBatches = (data && data.content) || []
+        const loadedBatchIds = this.batchData.content.map((batch: any) => batch.batchId)
+        const uniqueBatches = newBatches.filter((batch: any) => !loadedBatchIds.includes(batch.batchId))
+        this.batchData.content.push(...uniqueBatches)
+        if (newBatches.length < BATCH_LIST_LIMIT || !uniqueBatches.length) {
+          this.allBatchesLoaded = true
+        }
+        this.batchListLoading = false
+        if (panel) {
+          setTimeout(() => this.fillBatchPanel(panel))
+        }
+      },
+      (error: any) => {
+        this.batchListLoading = false
+        this.allBatchesLoaded = true
+        this.logger.error('BATCH LIST FETCH ERROR > ', error)
+      },
+    )
   }
 
   ngOnDestroy() {

@@ -15,6 +15,7 @@ import { ActivatedRoute } from '@angular/router'
 
 // TODO: move this in some common place
 const PROTECTED_SLAG_V8 = '/apis/protected/v8'
+export const BATCH_LIST_LIMIT = 10
 
 const API_END_POINTS = {
   CONTENT: `${PROTECTED_SLAG_V8}/content`,
@@ -33,6 +34,7 @@ const API_END_POINTS = {
   CONTENT_HISTORY: `${PROTECTED_SLAG_V8}/user/history`,
   CONTENT_HISTORYV2: `/apis/proxies/v8/read/content-progres`,
   COURSE_BATCH_LIST: `/apis/proxies/v8/learner/course/v1/batch/list`,
+  COURSE_BATCH_LIST_WITH_PG: `/apis/proxies/v8/learner/course/v1/learner/batch/list`,
   COURSE_BATCH: `/apis/proxies/v8/course/v1/batch/read`,
   AUTO_ASSIGN_BATCH: `/apis/protected/v8/cohorts/user/autoenrollment/`,
   AUTO_ASSIGN_CURATED_BATCH: `/apis/proxies/v8/curatedprogram/v1/enrol`,
@@ -203,9 +205,22 @@ export class WidgetContentService {
 
   }
 
+  getCourseBatchesRequest(courseId: string, offset = 0, limit = BATCH_LIST_LIMIT) {
+    return {
+      request: {
+        filters: {
+          courseId,
+        },
+        sort_by: { createdDate: 'desc' },
+        offset,
+        limit,
+      },
+    }
+  }
+
   fetchCourseBatches(req: any): Observable<NsContent.IBatchListResponse> {
     return this.http
-      .post<NsContent.IBatchListResponse>(API_END_POINTS.COURSE_BATCH_LIST, req)
+      .post<NsContent.IBatchListResponse>(API_END_POINTS.COURSE_BATCH_LIST_WITH_PG, req)
       .pipe(
         retry(1),
         map(

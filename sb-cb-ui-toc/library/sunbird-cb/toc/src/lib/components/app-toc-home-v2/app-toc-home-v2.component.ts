@@ -972,16 +972,7 @@ export class AppTocHomeV2Component implements OnInit, OnDestroy, AfterViewChecke
 
   public fetchBatchDetails() {
     if (this.content && this.content.identifier) {
-      const req = {
-        request: {
-          filters: {
-            courseId: this.content.identifier,
-            status: ['0', '1', '2'],
-            // createdBy: 'fca2925f-1eee-4654-9177-fece3fd6afc9',
-          },
-          sort_by: { createdDate: 'desc' },
-        },
-      }
+      const req = this.contentSvc.getCourseBatchesRequest(this.content.identifier)
       this.contentSvc.fetchCourseBatches(req).subscribe(
         (data: NsContent.IBatchListResponse) => {
           this.batchData = data

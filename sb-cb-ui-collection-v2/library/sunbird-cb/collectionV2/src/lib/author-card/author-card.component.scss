@@ -17,6 +17,19 @@
   }
 }
 
+.author-card-unenrolled {
+  background-color: #EBEBEB !important;
+
+  > div {
+    opacity: 0.6;
+  }
+}
+:host .enrolled-cls {
+  color: #999999 !important;
+  pointer-events: none;
+}
+
+
 .width-0 {
   width: 0;
 }
@@ -85,4 +98,31 @@ button {
 
 .batch-author-name {
   margin-bottom: 0px !important;
+}
+
+.learner-name-row {
+  min-width: 0;
+  gap: 6px;
+}
+
+.learner-status {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.learner-status-enrolled {
+  color: #008a28;
+  background-color: #effff3;
+  border-color: #00a832;
+}
+
+.learner-status-unenrolled {
+  color: #d70000;
+  background-color: #fff4f4;
+  border-color: #f00000;
 }

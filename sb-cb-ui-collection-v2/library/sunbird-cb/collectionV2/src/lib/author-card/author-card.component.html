@@ -1,7 +1,9 @@
-<mat-card class="author-card ws-mat-background-04" tabindex="0">
+<mat-card class="author-card ws-mat-background-04"
+  [class.author-card-unenrolled]="isUnenrolledLearner" tabindex="0">
   <div class="flex flex-row flex-middle">
     <div class="flex mx-2" *ngIf="bulkSelection">
-      <mat-checkbox [checked]="selectedAllUsersFlag" (change)="selectNewRequest($event, widgetData)"></mat-checkbox>
+      <mat-checkbox [checked]="selectedAllUsersFlag" [disabled]="isUnenrolledLearner"
+        (change)="selectNewRequest($event, widgetData)"></mat-checkbox>
     </div>
     <div class="flex">
       <ws-widget-avatar-photo [name]="widgetData?.name || widgetData?.userInfo.first_name"
@@ -9,8 +11,15 @@
       </ws-widget-avatar-photo>
     </div>
     <div class="flex flex-column flex-1 margin-left-xs">
-      <span class="mat-body-1 font-weight-700 batch-author-name">{{widgetData?.name ||
-        widgetData?.userInfo?.first_name}}</span>
+      <div class="flex flex-row flex-middle learner-name-row">
+        <span class="mat-body-1 font-weight-700 batch-author-name">{{widgetData?.name ||
+          widgetData?.userInfo?.first_name}}</span>
+          <!-- {{widgetData | json}} -->
+        <span *ngIf="showProfile && widgetData?.active === true"
+          class="learner-status learner-status-enrolled">Enrolled</span>
+        <span *ngIf="showProfile && widgetData?.active === false"
+          class="learner-status learner-status-unenrolled">Unenrolled</span>
+      </div>
       <!-- <span class="mat-body-2">{{widgetData?.email ||
           widgetData?.userInfo?.email}}</span> -->
       <span class="mat-body-2 ws-mat-black60-text" *ngIf="widgetData?.authorType">{{widgetData?.authorType}}</span>
@@ -55,19 +64,20 @@
     </div>
     <div *ngIf=" actions && !remove" class="flex flex-row gap-2 flex-middle">
       <button *ngIf="!bulkSelection" type="button" mat-button class="new-primary-button button-with-corners"
-        (click)="clickApprove()">Approve</button>
+        [disabled]="isUnenrolledLearner" (click)="clickApprove()">Approve</button>
       <button *ngIf="!bulkSelection" type="button" mat-button class="new-secondary-button-no-border button-with-corners"
-        (click)="clickReject()">Reject</button>
-      <button type="button" mat-button class="new-secondary-button button-with-corners" (click)="viewDetail()"
+        [disabled]="isUnenrolledLearner" (click)="clickReject()">Reject</button>
+      <button type="button" mat-button class="new-secondary-button button-with-corners"
+        [class.enrolled-cls]="isUnenrolledLearner" (click)="viewDetail()"
         *ngIf="isViewReport">View Details</button>
     </div>
     <div *ngIf="remove && remove.toString() === 'true'" class="flex flex-row gap-2 flex-middle">
       <button type="button" mat-button class="new-secondary-button button-with-corners"
-        (click)="clickRemove()">Remove</button>
+        [disabled]="isUnenrolledLearner" (click)="clickRemove()">Remove</button>
     </div>
     <div *ngIf="showProfile" class="flex flex-row gap-2 flex-middle">
-      <button type="button" mat-button class="new-secondary-button button-with-corners" (click)="viewDetail()">View
-        Details</button>
+      <button type="button" mat-button class="new-secondary-button button-with-corners"
+        [class.enrolled-cls]="isUnenrolledLearner" (click)="viewDetail()">View Details</button>
     </div>
   </div>
 </mat-card>

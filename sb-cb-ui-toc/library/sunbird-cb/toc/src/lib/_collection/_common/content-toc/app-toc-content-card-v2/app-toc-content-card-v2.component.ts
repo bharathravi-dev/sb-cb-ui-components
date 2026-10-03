@@ -781,7 +781,8 @@ export class AppTocContentCardV2Component implements OnInit, OnDestroy {
         !(localContentData.primaryCategory === NsContent.EPrimaryCategory.RESOURCE
           || localContentData.primaryCategory === NsContent.EPrimaryCategory.PRACTICE_RESOURCE
           || localContentData.primaryCategory === NsContent.EPrimaryCategory.FINAL_ASSESSMENT
-          || localContentData.primaryCategory === NsContent.EPrimaryCategory.COMP_ASSESSMENT)
+          || localContentData.primaryCategory === NsContent.EPrimaryCategory.COMP_ASSESSMENT
+          || localContentData.primaryCategory === NsContent.EPrimaryCategory.OFFLINE_SESSION)
       ) {
         // real percent logic
         // const total = localContentData.leafNodes.reduce((sum: number, childId: string) => {

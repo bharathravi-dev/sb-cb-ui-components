@@ -281,7 +281,7 @@
       && batchData?.content?.length">
       <mat-form-field appearance="outline" class="w-full batch-form-field">
         <mat-select #batchControlData [formControl]="batchControl" required autoSelctFirstOption (selectionChange)="batchChange($event)"
-          panelClass="batch-dropdown">
+          (openedChange)="onBatchDropdownToggle($event, batchControlData)" panelClass="batch-dropdown">
           <ng-container *ngFor="let batch of batchData.content; let i=index">
             <mat-option *ngIf="handleEnrollmentEndDate(batch) && !disableEnrollBtn" [value]="batch" selected="index === 0">
               <div class="flex flex-row items-center gap-2">
@@ -295,6 +295,11 @@
               </div>
             </mat-option>
           </ng-container>
+          @if (batchListLoading) {
+            <mat-option disabled>
+              <div class="text-sm">Loading more batches...</div>
+            </mat-option>
+          }
         </mat-select>
         <mat-error *ngIf="batchControl.hasError('required')">Please choose a batch to start course</mat-error>
       </mat-form-field>

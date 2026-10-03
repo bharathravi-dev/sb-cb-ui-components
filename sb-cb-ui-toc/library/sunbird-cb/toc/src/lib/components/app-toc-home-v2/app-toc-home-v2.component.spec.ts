@@ -1,3 +1,4 @@
+import { of } from 'rxjs'
 import { AppTocHomeV2Component } from './app-toc-home-v2.component'
 
 /**
@@ -169,6 +170,54 @@ describe('AppTocHomeV2Component', () => {
 
       expect(component.assessmentAttempts).toEqual(NO_ATTEMPTS)
       expect(component.loggerSvc.warn).toHaveBeenCalled()
+    })
+  })
+
+  describe('fetchBatchDetails', () => {
+    const COURSE_ID = 'do_1146698403652239361153'
+
+    function createBatchComponent(): any {
+      return createComponent({
+        content: { identifier: COURSE_ID },
+        primaryCategory: { BLENDED_PROGRAM: 'Blended Program' },
+        contentSvc: {
+          getCourseBatchesRequest: jest.fn((courseId: string) => ({
+            request: { filters: { courseId }, sort_by: { createdDate: 'desc' }, offset: 0, limit: 10 },
+          })),
+          fetchCourseBatches: jest.fn(() => of({ count: 76, content: [{ batchId: 'batch_0' }] })),
+        },
+        tocSvc: { setBatchData: jest.fn() },
+        routerChangeHandler: jest.fn(),
+      })
+    }
+
+    it('requests the first page of batches for the content', () => {
+      const component = createBatchComponent()
+
+      component.fetchBatchDetails()
+
+      expect(component.contentSvc.getCourseBatchesRequest).toHaveBeenCalledWith(COURSE_ID)
+      expect(component.contentSvc.fetchCourseBatches).toHaveBeenCalledWith({
+        request: { filters: { courseId: COURSE_ID }, sort_by: { createdDate: 'desc' }, offset: 0, limit: 10 },
+      })
+    })
+
+    it('keeps the total count so the banner can page through the rest', () => {
+      const component = createBatchComponent()
+
+      component.fetchBatchDetails()
+
+      expect(component.batchData).toEqual({ count: 76, content: [{ batchId: 'batch_0' }], enrolled: false })
+      expect(component.tocSvc.setBatchData).toHaveBeenCalledWith(component.batchData)
+    })
+
+    it('does not request batches without content', () => {
+      const component = createBatchComponent()
+      component.content = null
+
+      component.fetchBatchDetails()
+
+      expect(component.contentSvc.fetchCourseBatches).not.toHaveBeenCalled()
     })
   })
 })
