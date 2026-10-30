@@ -86,6 +86,14 @@ describe('ContentDictionaryService', () => {
     expect(callsTo(readUrl('do_2'))).toBe(1);
   });
 
+  it('getContents never calls the dictionary API when it is disabled', async () => {
+    configSvc.globalConfig.apis.content.dictionary.enabled = false;
+    routes[readUrl('do_3')] = { result: { content: { identifier: 'do_3' } } };
+    const result = await service.getContents(['do_2', 'do_3']).toPromise();
+    expect(callsTo(DICTIONARY_URL)).toBe(0);
+    expect(Object.keys(result || {})).toEqual(['do_2', 'do_3']);
+  });
+
   it('getContents does not retry a failed dictionary download per missing id', async () => {
     routes[DICTIONARY_URL] = new Error('down');
     routes[readUrl('do_3')] = { result: { content: { identifier: 'do_3' } } };

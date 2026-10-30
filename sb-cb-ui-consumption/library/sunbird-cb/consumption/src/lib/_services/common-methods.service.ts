@@ -1,8 +1,12 @@
 import { Injectable } from '@angular/core'
+import { ConfigurationsService } from '@sunbird-cb/utils-v2'
 import { NsContent } from '../_models/widget-content.model'
 import { NsContentStripWithTabs } from '../_common/content-strip-with-tabs-lib/content-strip-with-tabs-lib.model'
 import { NsCommonStrip } from '../_common/common-strip/common-strip.model'
 import * as _ from 'lodash'
+
+// localStorage key holding, per apicache key, when (and for which user) that API was last called
+const API_CACHE_TIME_KEY = 'apiCacheTimeCheck'
 
 export interface ConfigDetails {
   apiConfig: any,
@@ -15,7 +19,7 @@ export interface ConfigDetails {
 })
 export class CommonMethodsService {
 
-  constructor() { }
+  constructor(private configSvc: ConfigurationsService) { }
 
   transformContentsToWidgets(
     contents: NsContent.IContent[],
@@ -110,5 +114,57 @@ export class CommonMethodsService {
       }
     }
     return defaultUrl
+  }
+
+  /**
+   * True while a response saved earlier (in localStorage) can be used instead of calling its API
+   * again: saveApiCacheTime() was called for this user less than global-config
+   * apicache[cacheKey] seconds ago. Without that key, or with 0, nothing is cached and this is
+   * always false, so callers keep calling the API.
+   * @param cacheKey the apicache key holding the expiry in seconds, e.g. 'summaryTime'
+   * @param userId the signed-in user; a time saved for another user on this browser does not count
+   */
+  isApiCacheValid(cacheKey: string, userId: string | undefined): boolean {
+    const expirySeconds = Number(_.get(this.configSvc, ['globalConfig', 'apicache', cacheKey])) || 0
+    if (!userId || expirySeconds <= 0) {
+      return false
+    }
+    const saved = this.readApiCacheTimes()[cacheKey]
+    return !!saved && saved.userId === userId && !!saved.savedAt
+      && (Date.now() - saved.savedAt) / 1000 < expirySeconds
+  }
+
+  /** Records that the API behind `cacheKey` was just called successfully for this user. */
+  saveApiCacheTime(cacheKey: string, userId: string | undefined): void {
+    if (!userId) {
+      return
+    }
+    const times = this.readApiCacheTimes()
+    times[cacheKey] = { userId, savedAt: Date.now() }
+    this.writeApiCacheTimes(times)
+  }
+
+  /** Makes the next isApiCacheValid(cacheKey) false, e.g. after the data behind it changed. */
+  clearApiCacheTime(cacheKey: string): void {
+    const times = this.readApiCacheTimes()
+    if (times[cacheKey]) {
+      delete times[cacheKey]
+      this.writeApiCacheTimes(times)
+    }
+  }
+
+  private readApiCacheTimes(): Record<string, { userId: string, savedAt: number }> {
+    try {
+      const times = JSON.parse(localStorage.getItem(API_CACHE_TIME_KEY) || '{}')
+      return times && typeof times === 'object' ? times : {}
+    } catch {
+      return {}
+    }
+  }
+
+  private writeApiCacheTimes(times: Record<string, { userId: string, savedAt: number }>): void {
+    try {
+      localStorage.setItem(API_CACHE_TIME_KEY, JSON.stringify(times))
+    } catch { /* storage unavailable: the API is simply called again next time */ }
   }
 }

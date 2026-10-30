@@ -198,12 +198,8 @@ export class ContentDictionaryService {
       return resolved
     }
 
-    let dictionary: Record<string, any> = {}
-    try {
-      dictionary = await this.getDictionaryAsync(false)
-    } catch (err) {
-      console.warn('ContentDictionaryService: dictionary lookup failed, falling back per content', err)
-    }
+    // same rule as getContent(): download the dictionary only while it is enabled in global config
+    const dictionary = await this.lookupDictionary()
 
     const missing: string[] = []
     uniqueIds.forEach((id: string) => {
